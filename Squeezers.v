@@ -73,18 +73,19 @@ forall (x  : Sigma), exists n m :nat,(n>0) /\ (forall (y: Sigma),
 Variable S : Squeezer.
   
 Definition Counterexample (x: Sigma):=
-exists y : Sigma, Reachable x y /\ not( T.(Good) y).
+exists y : Sigma, (exists n, ReachableInTime x y n) /\ not( T.(Good) y).
 
 Lemma bad_not_finitetrace (h1:bad_not_terminal)(h2:bad_preserved): forall x,
 (~ ( T.(Good) x) -> ~(FiniteTrace x)).
 Proof.
-  unfold not.
+Admitted.
+ (* unfold not.
   intros.
   induction H0.
   - apply h1 in H as h3. destruct h3. apply (h2 x0 x1) in H.
     + apply h in H1 as h4. apply H0 in H1 as h5. apply h5. assumption.
     + apply H1.
-Qed.
+Qed.*)
 
 Lemma reach_trace : forall x y, FiniteTrace x -> Reachable x y -> FiniteTrace y.
 Proof.
@@ -94,6 +95,7 @@ Admitted.
 Lemma counterexample_not_finitetrace (h1:bad_not_terminal)(h2:bad_preserved): forall x,
  Counterexample x -> ~(FiniteTrace x).
 Proof.
+Admitted. (*
   unfold not.
   intros.
   destruct H.
@@ -103,7 +105,7 @@ Proof.
   destruct H.
   - destruct H0. apply h. apply H.
   - apply H0.
-  - Admitted.
+  - Admitted.*)
 
   
 Lemma mid : forall x y m n,
@@ -117,17 +119,124 @@ Lemma strong_induction (Pr : nat -> Prop):
 Proof.
 Admitted.
 
+Lemma ineq : forall a b c : nat, a <1+ b -> c >0 -> a-c < b.
+Proof.
+Admitted.
+
+Lemma bad_inf_trace : forall (y: Sigma), ~Good T y ->
+ forall (n: nat), exists z, ReachableInTime y z n.
+Proof.
+Admitted.
+
+Lemma reach_in_time_additive: forall (x y z : Sigma) (a b : nat),
+ ReachableInTime x y a -> ReachableInTime y z b -> ReachableInTime x z (a+b).
+Proof.
+Admitted.
+
+Lemma alg1 : forall  m n, m = n + (m - n).
+Proof.
+Admitted.
+
+Lemma strong_bad_preserved :forall y z n, ~Good T y -> ReachableInTime y z n -> ~Good T z.
+Proof.
+Admitted.
+
 Lemma one : forall (x: Sigma) , Recidivist  ->
 Counterexample  x -> Counterexample  (S.(squeeze) x).
 Proof.
   unfold Counterexample.
+  intros x H counter_x.
+  destruct counter_x as [y [[l x_to_y] y_bad]].
+
+  assert (forall k l', l' <k -> forall x' y' : Sigma,
+Recidivist ->
+(ReachableInTime x' y' l' /\ ~ Good T y') ->
+exists z' : Sigma,
+  (exists o' : nat, ReachableInTime (squeeze S x') z' o') /\ ~ Good T z').
+  { induction k.
+    - intros l' l'_less_0.
+      inversion l'_less_0.
+    - intros l' l'_Sk x' y' rec [x'_to_y' y'_bad].
+      assert (exists m n : nat,
+                         m > 0 /\
+                         (forall y'' : Sigma,
+                          ReachableInTime x' y'' m ->
+                          ReachableInTime (squeeze S x') (squeeze S y'') n)).
+      { apply (simulation_inducing S). }
+      destruct H0 as [m [n [m_pos H0]]].
+      assert (m <= l' \/ l' < m).
+      { apply Nat.le_gt_cases. }
+      destruct H1.
+      + assert (exists z, ReachableInTime x' z m /\ ReachableInTime z y' (l'-m)).
+        { apply (mid x'_to_y' H1). }
+        destruct H2 as [z [x'_to_z z_to_y']].
+        assert ((l' - m) < k).
+        { apply (ineq l'_Sk m_pos). }
+        apply (IHk (l' - m) H2 z y' ) in rec.
+        destruct rec as [z' [[o' sqz_to_z'] z'_bad]].
+        * exists z'.
+          split.
+          exists (n+o').
+          apply H0 in x'_to_z.
+          apply (reach_in_time_additive (x'_to_z) sqz_to_z').
+          assumption.
+        * split. assumption. assumption.
+      + assert (exists z, ReachableInTime y' z (m-l')).
+        { apply bad_inf_trace. assumption. }
+        destruct H2 as [z y'_to_z].
+        exists (squeeze S z).
+        split.
+        * exists n.
+          apply H0.
+          assert (m = l' + (m - l')).
+          { apply alg1. }
+          rewrite H2.
+          apply (reach_in_time_additive x'_to_y' y'_to_z).
+        * apply fault_preservation.
+          apply (strong_bad_preserved y'_bad y'_to_z). }
+  apply H0 with (l':=l)(k:=1+l)(y' :=y).
+  - apply Nat.lt_succ_diag_r.
+  - assumption.
+  - split.
+    + assumption.
+    + assumption.
+Qed.
+    
   intros.
-  destruct H0.
-  destruct H0.
-  rewrite reachable_in_finite_time in H0.
-  destruct H0.
+  induction k.
+  - inversion H2.
+  - destruct S.
+    simpl in *.
+    assert (exists n m : nat,
+                         n > 0 /\
+                         (forall y : Sigma,
+                          ReachableInTime x3 y n ->
+                          ReachableInTime (squeeze0 x3) (squeeze0 y) m)). 
+    { apply simulation_inducing0. }
+    destruct H5.
+    destruct H4.
+    destruct H4.
+    destruct H4.
+    assert (x4 <= x6 \/ x6 < x4).
+    { apply Nat.le_gt_cases. }
+    destruct H7.
+    + assert (exists z, ReachableInTime x3 z x4 /\ ReachableInTime z x5 (x6-x4)).
+      { apply mid. assumption. assumption. }
+      destruct H8.
+      destruct H8.
+      assert (x6 - x4 < k).
+      { 
+       
+    
+      
+  apply H2.
+  destruct H2.
+  
+
+  
   generalize dependent x.
   generalize dependent x1.
+  intros.
   apply strong_induction. (*Why does this not do what I want it to do?
   Is it because it doesn't see what follows after (x1 : nat) as having type
   nat -> Prop? How do I fix it?*)
