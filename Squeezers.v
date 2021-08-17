@@ -1,5 +1,6 @@
 Require Import Arith.
 Require Import Relations.
+Require Import Lia.
 
 Set Implicit Arguments.
 
@@ -21,6 +22,8 @@ forall x : Sigma, ~(T.(Good) x) -> (exists (y : Sigma), T.(E) x y).
 
 Definition bad_preserved  :=
 forall x y : Sigma,~ (T.(Good) x) -> T.(E) x y -> (~ (T.(Good) y)).
+
+
 
 Definition Recidivist :=
   bad_not_terminal  /\ bad_preserved.
@@ -44,9 +47,22 @@ Inductive ReachableInTime : Sigma-> Sigma-> nat -> Prop :=
 | refl (x: Sigma): ReachableInTime x x 0
 | trans_1n (x y z : Sigma)(n: nat) (H1: T.(E) x y)(H2:ReachableInTime y z n) 
   : ReachableInTime x z (S n)
-| trans_n1 (x y z : Sigma)(n: nat) (H1: T.(E) y z)(H2:ReachableInTime x y n) 
-  : ReachableInTime x z (S n)
 .
+
+Lemma trans_n1 (x y z : Sigma)(n: nat) (H1: T.(E) y z)(H2:ReachableInTime x y n) 
+  : ReachableInTime x z (S n).
+Proof.
+  generalize dependent x.
+  generalize dependent y.
+  generalize dependent z.
+  induction n.
+  - intros. inversion H2. subst. econstructor. apply H1. apply refl.
+  - intros. inversion H2. subst. specialize (IHn _ _ H1 _ H5).
+    eapply trans_1n.
+    + eauto.
+    + eauto.  
+    
+Qed.
 
 Lemma reach_in_time_additive: forall (x y z : Sigma) (a b : nat),
  ReachableInTime x y a -> ReachableInTime y z b -> ReachableInTime x z (a+b).
@@ -61,11 +77,6 @@ Proof.
   - intros. inversion H.
      + apply IHa with (x:= y0) in H0.
         apply trans_1n with (y:=y0). assumption. assumption. assumption.
-    + assert (ReachableInTime y0 z (S b)).
-      { apply trans_1n with (y:=y). assumption. assumption. }
-      rewrite Nat.add_succ_comm.
-      apply IHa with (y := y0).
-      assumption. assumption.
 Qed.
 
 Lemma reachable_in_finite_time : forall (x y : Sigma),
@@ -90,10 +101,7 @@ Proof.
       unfold Reachable in *.
       apply rt_trans with (y:=y).
       assumption. assumption.
-    + apply rt_step in H1.
-      unfold Reachable in *.
-      apply rt_trans with (y := y).
-      assumption. assumption.
+
 Qed.
       
 
@@ -157,15 +165,42 @@ Admitted.
   - apply H0.
   - Admitted.*)
 
+Definition sink (y : Sigma) :=
+(forall y', T.(E) y y' -> y'= y) /\ T.(E) y y.
+
+Definition bad_sink :=
+forall y, (~ (Good T y) ) -> sink y.
   
-Lemma mid : forall x y m n,
-ReachableInTime x y m ->  n <= m -> exists z,
-ReachableInTime x z n /\ ReachableInTime z y (m-n).
+Lemma mid x y l m (H: sink y):
+ReachableInTime x y l -> exists z,
+ReachableInTime x z m /\ ReachableInTime z y (l-m). 
 Proof.
-  intros x y m n.
-  generalize dependent n.
+  generalize dependent m.
   generalize dependent y.
   generalize dependent x.
+  induction l.
+  - intros. inversion H0. subst. exists y.
+    split.
+    + induction m.
+        * assumption.
+        * eapply trans_n1. apply H. auto.
+    + simpl. auto.
+  - intros. inversion H0; subst; clear H0.
+    + destruct m. 
+      -- exists x. split.
+          ++ constructor.
+          ++ simpl. econstructor; eauto.
+      --specialize (IHl _ _ H m H5).
+        destruct IHl as [z [Hy0z Hzy]].
+        exists z. split.
+        * econstructor; eauto.
+        * simpl. auto.
+Qed.
+
+(*
+  eapply trans_1n.
+
+
   induction m.
   - intros. inversion H. inversion H0. simpl. exists y.
     split. apply refl. apply refl.
@@ -173,34 +208,41 @@ Proof.
     + simpl. exists y. split. assumption. rewrite Nat.sub_diag.
       apply refl.
     + inversion H.
-Admitted.
+Admitted.*)
   
-
+(*
 Lemma strong_induction (Pr : nat -> Prop):
 (Pr 0 /\ (forall n, ((forall k, k<n -> Pr k) -> Pr n))) -> (forall n, Pr n).
 Proof.
-Admitted.
+Admitted.*)
 
-Lemma ineq : forall a b c : nat, a <1+ b -> c >0 -> a-c < b.
-Proof.
-Admitted.
-
-Lemma bad_inf_trace : forall (y: Sigma), ~Good T y ->
+Lemma bad_inf_trace (Hbs:bad_sink ): forall (y: Sigma), ~Good T y ->
  forall (n: nat), exists z, ReachableInTime y z n.
 Proof.
-Admitted.
+  intros.
+  exists y.
+  induction n.
+  - constructor.
+  - econstructor.
+    + apply Hbs. auto.
+    + auto.
+Qed.
 
 
 
-Lemma alg1 : forall  m n, m = n + (m - n).
+Lemma strong_bad_preserved (Hbs:bad_sink ):forall y z n, ~Good T y -> ReachableInTime y z n -> ~Good T z.
 Proof.
-Admitted.
+  intros.
+  apply Hbs in H as Hsink.
+  unfold sink in *.
+  destruct Hsink as [Hsucc Hr].
+  induction H0.
+  - auto.
+  - apply Hsucc in H1. subst. auto.
+Qed.
 
-Lemma strong_bad_preserved :forall y z n, ~Good T y -> ReachableInTime y z n -> ~Good T z.
-Proof.
-Admitted.
 
-Lemma one : forall (x: Sigma) , Recidivist  ->
+Lemma one : forall (x: Sigma) , bad_sink  ->
 Counterexample  x -> Counterexample  (S.(squeeze) x).
 Proof.
   unfold Counterexample.
@@ -208,7 +250,7 @@ Proof.
   destruct counter_x as [y [[l x_to_y] y_bad]].
 
   assert (forall k l', l' <k -> forall x' y' : Sigma,
-Recidivist ->
+bad_sink ->
 (ReachableInTime x' y' l' /\ ~ Good T y') ->
 exists z' : Sigma,
   (exists o' : nat, ReachableInTime (squeeze S x') z' o') /\ ~ Good T z').
@@ -227,10 +269,10 @@ exists z' : Sigma,
       { apply Nat.le_gt_cases. }
       destruct H1.
       + assert (exists z, ReachableInTime x' z m /\ ReachableInTime z y' (l'-m)).
-        { apply (mid x'_to_y' H1). }
+        { eapply mid. auto. auto. }
         destruct H2 as [z [x'_to_z z_to_y']].
         assert ((l' - m) < k).
-        { apply (ineq l'_Sk m_pos). }
+        { lia. }
         apply (IHk (l' - m) H2 z y' ) in rec.
         destruct rec as [z' [[o' sqz_to_z'] z'_bad]].
         * exists z'.
@@ -241,18 +283,18 @@ exists z' : Sigma,
           assumption.
         * split. assumption. assumption.
       + assert (exists z, ReachableInTime y' z (m-l')).
-        { apply bad_inf_trace. assumption. }
+        { apply bad_inf_trace. assumption. assumption. }
         destruct H2 as [z y'_to_z].
         exists (squeeze S z).
         split.
         * exists n.
           apply H0.
           assert (m = l' + (m - l')).
-          { apply alg1. }
+          { lia. }
           rewrite H2.
           apply (reach_in_time_additive x'_to_y' y'_to_z).
         * apply fault_preservation.
-          apply (strong_bad_preserved y'_bad y'_to_z). }
+          apply (strong_bad_preserved H y'_bad y'_to_z). }
   apply H0 with (l':=l)(k:=1+l)(y' :=y).
   - apply Nat.lt_succ_diag_r.
   - assumption.
