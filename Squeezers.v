@@ -48,10 +48,54 @@ Inductive ReachableInTime : Sigma-> Sigma-> nat -> Prop :=
   : ReachableInTime x z (S n)
 .
 
+Lemma reach_in_time_additive: forall (x y z : Sigma) (a b : nat),
+ ReachableInTime x y a -> ReachableInTime y z b -> ReachableInTime x z (a+b).
+Proof.
+  intros.
+  generalize dependent z.
+  generalize dependent y.
+  generalize dependent x.
+  generalize dependent b.
+  induction a.
+  - intros. simpl. inversion H. assumption.
+  - intros. inversion H.
+     + apply IHa with (x:= y0) in H0.
+        apply trans_1n with (y:=y0). assumption. assumption. assumption.
+    + assert (ReachableInTime y0 z (S b)).
+      { apply trans_1n with (y:=y). assumption. assumption. }
+      rewrite Nat.add_succ_comm.
+      apply IHa with (y := y0).
+      assumption. assumption.
+Qed.
+
 Lemma reachable_in_finite_time : forall (x y : Sigma),
 Reachable x y <-> exists (n: nat), ReachableInTime x y n.
 Proof.
-Admitted.
+  split.
+  - intros.
+    induction H.
+    + exists 1.
+      apply (trans_1n x  H).
+      apply refl.
+    + exists 0.
+      apply refl.
+    + destruct IHclos_refl_trans1.
+      destruct IHclos_refl_trans2.
+      exists (x0 + x1).
+      apply (reach_in_time_additive H1 H2).
+  - intros [n H].
+    induction H.
+    + unfold Reachable. apply rt_refl.
+    + apply rt_step in H1. 
+      unfold Reachable in *.
+      apply rt_trans with (y:=y).
+      assumption. assumption.
+    + apply rt_step in H1.
+      unfold Reachable in *.
+      apply rt_trans with (y := y).
+      assumption. assumption.
+Qed.
+      
 
 Inductive FiniteTrace (x: Sigma) : Prop :=
 | succ (h: forall y, (T.(E) x y -> FiniteTrace y)): FiniteTrace x
@@ -74,11 +118,17 @@ Variable S : Squeezer.
   
 Definition Counterexample (x: Sigma):=
 exists y : Sigma, (exists n, ReachableInTime x y n) /\ not( T.(Good) y).
-
+(*
 Lemma bad_not_finitetrace (h1:bad_not_terminal)(h2:bad_preserved): forall x,
 (~ ( T.(Good) x) -> ~(FiniteTrace x)).
 Proof.
-Admitted.
+  intros.
+  unfold not.
+  intros.*)
+
+  
+  
+  
  (* unfold not.
   intros.
   induction H0.
@@ -86,16 +136,16 @@ Admitted.
     + apply h in H1 as h4. apply H0 in H1 as h5. apply h5. assumption.
     + apply H1.
 Qed.*)
-
+(*
 Lemma reach_trace : forall x y, FiniteTrace x -> Reachable x y -> FiniteTrace y.
 Proof.
-Admitted.
+Admitted.*)
 
-
+(*
 Lemma counterexample_not_finitetrace (h1:bad_not_terminal)(h2:bad_preserved): forall x,
  Counterexample x -> ~(FiniteTrace x).
 Proof.
-Admitted. (*
+Admitted. 
   unfold not.
   intros.
   destruct H.
@@ -112,7 +162,19 @@ Lemma mid : forall x y m n,
 ReachableInTime x y m ->  n <= m -> exists z,
 ReachableInTime x z n /\ ReachableInTime z y (m-n).
 Proof.
-  Admitted.
+  intros x y m n.
+  generalize dependent n.
+  generalize dependent y.
+  generalize dependent x.
+  induction m.
+  - intros. inversion H. inversion H0. simpl. exists y.
+    split. apply refl. apply refl.
+  - intros. inversion H0.
+    + simpl. exists y. split. assumption. rewrite Nat.sub_diag.
+      apply refl.
+    + inversion H.
+Admitted.
+  
 
 Lemma strong_induction (Pr : nat -> Prop):
 (Pr 0 /\ (forall n, ((forall k, k<n -> Pr k) -> Pr n))) -> (forall n, Pr n).
@@ -128,10 +190,7 @@ Lemma bad_inf_trace : forall (y: Sigma), ~Good T y ->
 Proof.
 Admitted.
 
-Lemma reach_in_time_additive: forall (x y z : Sigma) (a b : nat),
- ReachableInTime x y a -> ReachableInTime y z b -> ReachableInTime x z (a+b).
-Proof.
-Admitted.
+
 
 Lemma alg1 : forall  m n, m = n + (m - n).
 Proof.
@@ -201,7 +260,7 @@ exists z' : Sigma,
     + assumption.
     + assumption.
 Qed.
-    
+    (*
   intros.
   induction k.
   - inversion H2.
@@ -518,7 +577,7 @@ reason only allowed with booleans?*)
   (*Destructing H again doesn't do what I want it to do.*)
   *)
 
-
+*)
 End Simulation.
 
 
